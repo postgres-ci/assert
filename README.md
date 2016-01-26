@@ -61,7 +61,6 @@ $$ language plpgsql;
 
 create or replace function example_auth.TestLogin() returns void as $$
     declare
-        _login varchar;
         _query text;
     begin
 
@@ -73,9 +72,10 @@ create or replace function example_auth.TestLogin() returns void as $$
 
             IF assert.Exception(_query, 'INVALID_PASSWORD') THEN
 
-                SELECT login INTO _login FROM example_auth.get_auth_user(example_auth.login('admin', 'password'));
-
-                PERFORM assert.Equal('admin_', _login);
+                PERFORM assert.Equal('admin_', login) FROM example_auth.get_auth_user(
+                    
+                    example_auth.login('admin', 'password')
+                );
 
             END IF;
 
@@ -83,7 +83,6 @@ create or replace function example_auth.TestLogin() returns void as $$
 
     end;
 $$ language plpgsql;
-
 
 insert into assert.tests (test_func) values ('example_auth.TestHash'), ('example_auth.TestLogin');
 
