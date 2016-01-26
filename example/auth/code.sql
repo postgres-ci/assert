@@ -112,12 +112,4 @@ create function example_auth.init_admin(
     end;
 $$ language plpgsql;
 
--- Example
-
 select example_auth.init_admin();
-
-/*
-select * from example_auth.init_admin(); -- create user
-select * from example_auth.login('admin', 'password'); -- get session_id
-select * from example_auth.get_auth_user(session_id);
-*/
