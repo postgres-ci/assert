@@ -1,0 +1,7 @@
+comment         = 'Assert (unit testing framework)'
+default_version = '0.0.1'
+module_pathname = '$libdir/assert'
+superuser       = false
+relocatable     = false
+requires        = 'plpgsql,pg_trgm'
+schema          = 'assert'
