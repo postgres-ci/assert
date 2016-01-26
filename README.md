@@ -33,6 +33,9 @@ Exception asserts
 
 ```sql
 select assert.Exception('select t', 'column "t" does not exist');
+select assert.Exception('select t', 'column "t" does not exist', '42703'); -- check exception message and code
+select assert.Exception('select t', _exception_code:= '42703'); -- check only exception code
+select assert.Exception('select t', '%does not exist%'); -- pattern matching (case-sensitive)
 ```
 
 **Example:**
@@ -73,7 +76,7 @@ create or replace function example_auth.TestLogin() returns void as $$
             IF assert.Exception(_query, 'INVALID_PASSWORD') THEN
 
                 PERFORM assert.Equal('admin_', login) FROM example_auth.get_auth_user(
-                    
+
                     example_auth.login('admin', 'password')
                 );
 
