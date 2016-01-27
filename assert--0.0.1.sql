@@ -75,24 +75,15 @@ create or replace function assert.end_test(_test_id int, _errors assert.test_err
 $$ language plpgsql;
 
 create or replace function assert.get_test_errors(_test_id int) returns assert.test_error[] as $$
-    declare
-        _result assert.test_errors;
-        _errors assert.test_error[] default '{}';
     begin
-
-        FOR _result IN SELECT * FROM assert.test_errors WHERE test_id = _test_id AND test_seq  = currval('assert.test_seq') LOOP
-            _errors = array_append(_errors, ROW(
-                    _result.error,
-                    _result.description,
-                    _result.context
-                )::assert.test_error
-            );
-        END LOOP;
-
-        return _errors;
+        return (
+            SELECT
+                COALESCE(array_agg(ROW(error, description, context)::assert.test_error), '{}')
+            FROM assert.test_errors
+            WHERE test_id = _test_id AND test_seq  = currval('assert.test_seq')
+        );
     end;
 $$ language plpgsql;
-
 
 create or replace function assert.Fail(_error text, _description text, _context text) returns boolean as $$
     declare
@@ -137,6 +128,9 @@ create or replace function assert.RunTests(_pattern text default '') returns big
         _test_id     int;
         _test_func   varchar;
         _test_errors assert.test_error[];
+
+        _message           text;
+        _exception_context text;
     begin
 
         LOCK TABLE assert.tests IN ACCESS EXCLUSIVE MODE;
@@ -167,7 +161,13 @@ create or replace function assert.RunTests(_pattern text default '') returns big
 
             EXCEPTION WHEN OTHERS THEN
                 IF SQLERRM <> 'ROLLBACK_INNER_TRANSACTION' THEN
-                    RAISE EXCEPTION '%', SQLERRM;
+
+                    GET STACKED DIAGNOSTICS
+                        _message           = MESSAGE_TEXT,
+                        _exception_context = PG_EXCEPTION_CONTEXT;
+
+                    _test_errors = array_append(_test_errors, ROW(format('Uncaught exception "%s" in "%s"', _message, _test_func), '', _exception_context)::assert.test_error);
+
                 END IF;
             END;
 
