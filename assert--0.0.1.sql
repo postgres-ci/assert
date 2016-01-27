@@ -18,7 +18,6 @@ create table assert.tests(
     created_at timestamptz not null default current_timestamp
 );
 
-create index idx_test_like on assert.tests using gin (test_func gin_trgm_ops);
 create unique index uidx_test_func  on assert.tests (lower(test_func));
 create unique index uidx_is_running on assert.tests (is_running) where is_running = true;
 
@@ -172,11 +171,11 @@ create or replace function assert.RunTests(_pattern text default '') returns big
             END;
 
             PERFORM assert.end_test(_test_id, _test_errors);
-
+/*
             IF array_length(_test_errors, 1) IS NOT NULL THEN
-            --    EXIT;
+               EXIT;
             END IF;
-
+*/
         END LOOP;
 
         return currval('assert.test_seq');
@@ -275,6 +274,40 @@ create or replace function assert.False(_value boolean, _description text defaul
     end;
 $$ language plpgsql;
 
+    /* src/assertions/greater_than_or_equal.sql */
+	
+create or replace function assert.GreaterThanOrEqual(_expected anyelement, _actual anyelement, _description text default '') returns boolean as $$
+    declare
+        _context text;
+    begin
+
+        GET DIAGNOSTICS _context = PG_CONTEXT;
+
+        IF _actual >= _expected THEN
+            return true;
+        END IF;
+
+        return assert.Fail(format('Failed asserting that %s is equal to %s or is greater than %s.', _actual, _expected, _expected), _description, _context);
+    end;
+$$ language plpgsql;
+
+    /* src/assertions/greater_than.sql */
+	
+create or replace function assert.GreaterThan(_expected anyelement, _actual anyelement, _description text default '') returns boolean as $$
+    declare
+        _context text;
+    begin
+
+        GET DIAGNOSTICS _context = PG_CONTEXT;
+
+        IF _actual > _expected THEN
+            return true;
+        END IF;
+
+        return assert.Fail(format('Failed asserting that %s is greater than %s.', _actual, _expected), _description, _context);
+    end;
+$$ language plpgsql;
+
     /* src/assertions/len.sql */
 	
 create or replace function assert.Len(_array anyarray, _length int, _description text default '') returns boolean as $$
@@ -291,6 +324,40 @@ create or replace function assert.Len(_array anyarray, _length int, _description
         return true;
     end;
 
+$$ language plpgsql;
+
+    /* src/assertions/less_than_or_equal.sql */
+	
+create or replace function assert.LessThanOrEqual(_expected anyelement, _actual anyelement, _description text default '') returns boolean as $$
+    declare
+        _context text;
+    begin
+
+        GET DIAGNOSTICS _context = PG_CONTEXT;
+
+        IF _actual <= _expected THEN
+            return true;
+        END IF;
+
+        return  assert.Fail(format('Failed asserting that %s is equal to %s or is less than %s.', _actual, _expected, _expected), _description, _context);
+    end;
+$$ language plpgsql;
+
+    /* src/assertions/less_than.sql */
+	
+create or replace function assert.LessThan(_expected anyelement, _actual anyelement, _description text default '') returns boolean as $$
+    declare
+        _context text;
+    begin
+
+        GET DIAGNOSTICS _context = PG_CONTEXT;
+
+        IF _actual < _expected THEN
+            return true;
+        END IF;
+
+        return assert.Fail(format('Failed asserting that %s is less than %s.', _actual, _expected), _description, _context);
+    end;
 $$ language plpgsql;
 
     /* src/assertions/not_equal.sql */

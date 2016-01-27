@@ -5,7 +5,6 @@ create table assert.tests(
     created_at timestamptz not null default current_timestamp
 );
 
-create index idx_test_like on assert.tests using gin (test_func gin_trgm_ops);
 create unique index uidx_test_func  on assert.tests (lower(test_func));
 create unique index uidx_is_running on assert.tests (is_running) where is_running = true;
 
@@ -159,11 +158,11 @@ create or replace function assert.RunTests(_pattern text default '') returns big
             END;
 
             PERFORM assert.end_test(_test_id, _test_errors);
-
+/*
             IF array_length(_test_errors, 1) IS NOT NULL THEN
-            --    EXIT;
+               EXIT;
             END IF;
-
+*/
         END LOOP;
 
         return currval('assert.test_seq');
