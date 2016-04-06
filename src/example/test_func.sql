@@ -23,9 +23,11 @@ select assert.add_test('example', 'test_func2');
 
 select 
     namespace || '.' || procedure as  func,
-    case when array_length(errors, 1) is null then
-        'pass'
-    else 'fail' end as result,
+    case 
+        when array_length(errors, 1) is null 
+        then 'pass'
+        else 'fail' end 
+    as result,
     to_json(errors) as errors,
     finished_at - started_at AS duration
 from  assert.test_runner();

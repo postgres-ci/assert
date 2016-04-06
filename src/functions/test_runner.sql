@@ -11,18 +11,16 @@ create or replace function assert.test_runner() returns table (
         _test_errors assert.error[];
     begin 
 
-        LOCK TABLE assert.tests IN ACCESS EXCLUSIVE MODE;
-
         PERFORM nextval('assert.running_numbers');
 
         FOR _test_id, _test_func IN 
             SELECT 
                 T.test_id, 
                 quote_ident(T.namespace) || '.' || quote_ident(T.procedure) AS func 
-            FROM assert.tests AS T 
-            ORDER BY func 
+            FROM assert.tests AS T
+            ORDER BY T.test_id
         LOOP
-
+            
             PERFORM assert.start_test(_test_id);
 
             BEGIN

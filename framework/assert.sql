@@ -7,18 +7,17 @@ drop schema assert cascade;
 
 create schema assert;
 
+create sequence assert.current_test;
 create sequence assert.running_numbers;
 
 create table assert.tests (
     test_id     serial  primary key,
     namespace   name    not null,
     procedure   name    not null check(procedure like 'test\_%'),
-    is_running  boolean not null default false,
     created_at  timestamptz not null default current_timestamp
 );
 
 create unique index uidx_assert_test_func       on assert.tests (lower(namespace || '.' || procedure));
-create unique index uidx_assert_test_is_running on assert.tests (is_running) where is_running = true;
 
 create type assert.error as (
     message  text,
@@ -32,6 +31,11 @@ create unlogged table assert.errors(
     error    assert.error not null
 );
 
+create unlogged table assert.current_test_id(
+    current_test int not null default currval('assert.current_test') primary key,
+    test_id      int not null references assert.tests(test_id)
+);
+
 create table assert.results(
     test_id     int            not null references assert.tests(test_id),
     run_num     bigint         not null default currval('assert.running_numbers'),
@@ -40,7 +44,6 @@ create table assert.results(
     finished_at timestamptz,
     primary key (run_num, test_id)
 );
-
     /* src/functions/add_test.sql */
 	
 create or replace function assert.add_test(_namespace name, _procedure name) returns void as $$
@@ -87,15 +90,15 @@ $$ language plpgsql security definer;
 	
 create or replace function assert.finish_test(_test_id int, _errors assert.error[]) returns void as $$
     begin 
-
-        UPDATE assert.tests SET is_running = false  WHERE test_id = _test_id;
-
+    
         UPDATE assert.results
             SET
                 errors      = _errors,
                 finished_at = clock_timestamp()
         WHERE test_id = _test_id
-        AND   run_num  = currval('assert.running_numbers');
+        AND   run_num = currval('assert.running_numbers');
+
+        DELETE FROM assert.current_test_id WHERE current_test = currval('assert.current_test');
     end;
 $$ language plpgsql security definer;
     /* src/functions/get_current_test_id.sql */
@@ -103,7 +106,7 @@ $$ language plpgsql security definer;
 create or replace function assert.get_current_test_id() returns int as $$
     begin 
         return (
-            SELECT test_id FROM assert.tests WHERE is_running = true
+            SELECT test_id FROM assert.current_test_id WHERE current_test = currval('assert.current_test')
         );
     end;
 $$ language plpgsql security definer;
@@ -125,7 +128,7 @@ $$ language plpgsql security definer;
 create or replace function assert.start_test(_test_id int) returns void as $$
     begin 
 
-        UPDATE assert.tests SET is_running = true  WHERE test_id = _test_id;
+        PERFORM nextval('assert.current_test');
         
         INSERT INTO assert.results (
             test_id,
@@ -134,6 +137,8 @@ create or replace function assert.start_test(_test_id int) returns void as $$
             _test_id,
             clock_timestamp()
         );
+
+        INSERT INTO assert.current_test_id (test_id) VALUES (_test_id);
     end;
 $$ language plpgsql security definer;
     /* src/functions/test_runner.sql */
@@ -151,18 +156,16 @@ create or replace function assert.test_runner() returns table (
         _test_errors assert.error[];
     begin 
 
-        LOCK TABLE assert.tests IN ACCESS EXCLUSIVE MODE;
-
         PERFORM nextval('assert.running_numbers');
 
         FOR _test_id, _test_func IN 
             SELECT 
                 T.test_id, 
                 quote_ident(T.namespace) || '.' || quote_ident(T.procedure) AS func 
-            FROM assert.tests AS T 
-            ORDER BY func 
+            FROM assert.tests AS T
+            ORDER BY T.test_id
         LOOP
-
+            
             PERFORM assert.start_test(_test_id);
 
             BEGIN
