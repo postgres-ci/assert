@@ -1,6 +1,0 @@
-comment         = 'Assert (unit testing framework)'
-default_version = '0.0.1'
-superuser       = false
-relocatable     = false
-requires        = 'plpgsql'
-schema          = 'assert'
