@@ -3,8 +3,6 @@
 
     /* src/assert.sql */
 	
-drop schema assert cascade;
-
 create schema assert;
 
 create sequence assert.current_test;
@@ -17,7 +15,7 @@ create table assert.tests (
     created_at  timestamptz not null default current_timestamp
 );
 
-create unique index uidx_assert_test_func       on assert.tests (lower(namespace || '.' || procedure));
+create unique index uidx_assert_test_func on assert.tests (lower(namespace || '.' || procedure));
 
 create type assert.error as (
     message  text,
@@ -26,24 +24,51 @@ create type assert.error as (
 );
 
 create unlogged table assert.errors(
-    test_id  int          not null references assert.tests(test_id),
+    test_id  int          not null references assert.tests(test_id) on delete cascade,
     run_num  bigint       not null default currval('assert.running_numbers'),
     error    assert.error not null
 );
 
 create unlogged table assert.current_test_id(
     current_test int not null default currval('assert.current_test') primary key,
-    test_id      int not null references assert.tests(test_id)
+    test_id      int not null references assert.tests(test_id) on delete cascade
 );
 
 create table assert.results(
-    test_id     int            not null references assert.tests(test_id),
+    test_id     int            not null references assert.tests(test_id) on delete cascade,
     run_num     bigint         not null default currval('assert.running_numbers'),
     errors      assert.error[] not null default '{}',
     started_at  timestamptz    not null,
     finished_at timestamptz,
     primary key (run_num, test_id)
 );
+
+create index idx_assert_test_results on assert.results(test_id);
+
+create or replace view assert.view_tests as 
+    SELECT 
+        T.test_id,
+        T.namespace,
+        T.procedure,
+        T.created_at,
+        R.started_at AS last_run_at,
+        CASE 
+            WHEN R.test_id IS NULL THEN '-'
+            WHEN array_length(r.errors, 1) IS NULL THEN 'PASS'
+            ELSE 'FAIL' 
+        END AS last_result
+    FROM assert.tests AS T 
+    LEFT JOIN LATERAL (
+        SELECT 
+            R.test_id,
+            R.errors, 
+            R.started_at 
+        FROM assert.results AS R 
+        WHERE R.test_id = T.test_id 
+        ORDER BY R.run_num DESC 
+        LIMIT 1
+    ) AS R USING(test_id);
+
     /* src/functions/add_test.sql */
 	
 create or replace function assert.add_test(_namespace name, _procedure name) returns void as $$
@@ -88,14 +113,14 @@ create or replace function assert.fail(
 $$ language plpgsql security definer;
     /* src/functions/finish_test.sql */
 	
-create or replace function assert.finish_test(_test_id int, _errors assert.error[]) returns void as $$
+create or replace function assert.finish_test(_errors assert.error[]) returns void as $$
     begin 
     
         UPDATE assert.results
             SET
                 errors      = _errors,
                 finished_at = clock_timestamp()
-        WHERE test_id = _test_id
+        WHERE test_id = assert.get_current_test_id()
         AND   run_num = currval('assert.running_numbers');
 
         DELETE FROM assert.current_test_id WHERE current_test = currval('assert.current_test');
@@ -112,15 +137,22 @@ create or replace function assert.get_current_test_id() returns int as $$
 $$ language plpgsql security definer;
     /* src/functions/get_test_errors.sql */
 	
-create or replace function assert.get_test_errors(_test_id int) returns assert.error[] as $$
+create or replace function assert.get_test_errors() returns assert.error[] as $$
     begin
         return (
             SELECT
                 COALESCE(array_agg(E.error), '{}')
             FROM assert.errors AS E
-            WHERE test_id  = _test_id 
+            WHERE test_id  = assert.get_current_test_id() 
             AND   run_num  = currval('assert.running_numbers')
         );
+    end;
+$$ language plpgsql security definer;
+    /* src/functions/remove_test.sql */
+	
+create or replace function assert.remove_test(_test_id int) returns void as $$
+    begin 
+        DELETE FROM assert.tests WHERE test_id = _test_id;
     end;
 $$ language plpgsql security definer;
     /* src/functions/start_test.sql */
@@ -172,7 +204,7 @@ create or replace function assert.test_runner() returns table (
 
                 EXECUTE 'SELECT ' || _test_func || '()';
 
-                _test_errors = assert.get_test_errors(_test_id);
+                _test_errors = assert.get_test_errors();
 
                 RAISE EXCEPTION 'ROLLBACK_INNER_TRANSACTION';
 
@@ -190,7 +222,7 @@ create or replace function assert.test_runner() returns table (
                 END IF;
             END;
 
-            PERFORM assert.finish_test(_test_id, _test_errors);
+            PERFORM assert.finish_test(_test_errors);
 
         END LOOP;
 
@@ -231,5 +263,7 @@ $$ language plpgsql security definer;
 grant  usage   on schema assert to public;
 revoke execute on all functions in schema assert from public;
 grant execute on function assert.add_test(name, name) to public;
+grant execute on function assert.remove_test(int) to public;
 grant execute on function assert.test_runner() to public;
 grant execute on function assert.equal(anyelement, anyelement, text) to public;
+grant select on table assert.view_tests to public;

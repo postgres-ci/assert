@@ -27,7 +27,7 @@ create or replace function assert.test_runner() returns table (
 
                 EXECUTE 'SELECT ' || _test_func || '()';
 
-                _test_errors = assert.get_test_errors(_test_id);
+                _test_errors = assert.get_test_errors();
 
                 RAISE EXCEPTION 'ROLLBACK_INNER_TRANSACTION';
 
@@ -45,7 +45,7 @@ create or replace function assert.test_runner() returns table (
                 END IF;
             END;
 
-            PERFORM assert.finish_test(_test_id, _test_errors);
+            PERFORM assert.finish_test(_test_errors);
 
         END LOOP;
 
