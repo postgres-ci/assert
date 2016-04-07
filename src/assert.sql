@@ -13,9 +13,8 @@ create table assert.tests (
 create unique index uidx_assert_test_func on assert.tests (lower(namespace || '.' || procedure));
 
 create type assert.error as (
-    message  text,
-    comment  text,
-    context  text
+    message text,
+    comment text
 );
 
 create unlogged table assert.errors(

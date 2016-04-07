@@ -1,1 +1,1 @@
-# The PLpgSQL Unit Testing framework
+# The PL/pgSQL Unit Testing framework

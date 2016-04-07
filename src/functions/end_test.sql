@@ -1,4 +1,4 @@
-create or replace function assert.finish_test(_errors assert.error[]) returns void as $$
+create or replace function assert.end_test(_errors assert.error[]) returns void as $$
     begin 
     
         UPDATE assert.results

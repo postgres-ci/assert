@@ -1,7 +1,6 @@
 create or replace function assert.fail(
     _message text, 
-    _comment text, 
-    _context text
+    _comment text
 ) returns boolean as $$
     declare 
         _current_test_id int;
@@ -25,7 +24,7 @@ create or replace function assert.fail(
             error 
         ) VALUES (
             _current_test_id,
-            (_message, _comment, _context)::assert.error
+            (_message, _comment)::assert.error
         );
 
         return false;

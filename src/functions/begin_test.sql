@@ -1,4 +1,4 @@
-create or replace function assert.start_test(_test_id int) returns void as $$
+create or replace function assert.begin_test(_test_id int) returns void as $$
     begin 
 
         PERFORM nextval('assert.current_test');

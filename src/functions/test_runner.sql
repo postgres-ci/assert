@@ -21,7 +21,7 @@ create or replace function assert.test_runner() returns table (
             ORDER BY T.test_id
         LOOP
             
-            PERFORM assert.start_test(_test_id);
+            PERFORM assert.begin_test(_test_id);
 
             BEGIN
 
@@ -37,7 +37,6 @@ create or replace function assert.test_runner() returns table (
 
                     _test_errors = array_append(_test_errors, (
                             format('Uncaught exception "%s" in "%s"', SQLERRM, _test_func), 
-                            '', 
                             ''
                         )::assert.error
                     );
@@ -45,7 +44,7 @@ create or replace function assert.test_runner() returns table (
                 END IF;
             END;
 
-            PERFORM assert.finish_test(_test_errors);
+            PERFORM assert.end_test(_test_errors);
 
         END LOOP;
 
