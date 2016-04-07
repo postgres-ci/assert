@@ -1,5 +1,3 @@
--- Write your tests
-
 create or replace function example.test_create_user() returns void as $$
     declare
         _user_id       int;
@@ -50,22 +48,3 @@ create or replace function example.test_roll_back_a_transaction_for_each_test() 
 
     end;
 $$ language plpgsql;
-
--- Register your tests in Postgres-CI database
-select assert.add_test('example', 'test_create_user');
-select assert.add_test('example', 'test_roll_back_a_transaction_for_each_test');
-
--- Run your tests
-select 
-    namespace || '.' || procedure as func,
-    case 
-        when array_length(errors, 1) is null 
-        then 'pass'
-        else 'fail' 
-    end 
-    as result,
-    to_json(errors) as errors,
-    finished_at - started_at as duration
-from  assert.test_runner();
-
--- Enjoy!
