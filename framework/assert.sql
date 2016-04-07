@@ -266,6 +266,60 @@ create or replace function assert.false(_value boolean, _comment text default ''
         return true;
     end;
 $$ language plpgsql security definer;
+    /* src/assertions/not_equal.sql */
+    
+create or replace function assert.not_equal(_expected anyelement, _actual anyelement, _comment text default '') returns boolean as $$
+    begin
+
+        IF _expected = _actual THEN
+            return assert.fail(format('Should not be: %s', _actual), _comment);
+        END IF;
+
+        return true;
+    end;
+$$ language plpgsql security definer;
+
+    /* src/assertions/not_null.sql */
+    
+create or replace function assert.not_null(_value anyelement, _comment text default '') returns boolean as $$
+    begin
+        return true;
+    end;
+$$ language plpgsql security definer;
+
+create or replace function assert.not_null(_value text, _comment text default '') returns boolean as $$
+    begin
+
+        IF _value IS NULL THEN
+            return assert.fail('Expected value not to be null.', _comment);
+        END if;
+
+        return true;
+    end;
+$$ language plpgsql security definer;
+    /* src/assertions/null.sql */
+    
+create or replace function assert.null(_value anyelement, _comment text default '') returns boolean as $$
+    begin
+
+        IF _value IS NOT NULL THEN
+            return assert.fail(format('Expected null, but got: %s', _value), _comment);
+        END if;
+
+        return true;
+    end;
+$$ language plpgsql security definer;
+
+create or replace function assert.null(_value text, _comment text default '') returns boolean as $$
+    begin
+
+        IF _value IS NOT NULL THEN
+            return assert.fail(format('Expected null, but got: %s', _value), _comment);
+        END if;
+
+        return true;
+    end;
+$$ language plpgsql security definer;
     /* src/assertions/true.sql */
     
 create or replace function assert.true(_value boolean, _comment text default '') returns boolean as $$
@@ -286,6 +340,11 @@ grant execute on function assert.add_test(name, name) to public;
 grant execute on function assert.remove_test(int) to public;
 grant execute on function assert.test_runner() to public;
 grant execute on function assert.equal(anyelement, anyelement, text) to public;
+grant execute on function assert.not_equal(anyelement, anyelement, text) to public;
 grant execute on function assert.true(boolean, text) to public;
 grant execute on function assert.false(boolean, text) to public;
+grant execute on function assert.null(anyelement, text) to public;
+grant execute on function assert.null(text, text) to public;
+grant execute on function assert.not_null(anyelement, text) to public;
+grant execute on function assert.not_null(text, text) to public;
 grant select on table assert.view_tests to public;

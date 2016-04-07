@@ -12,4 +12,5 @@ create or replace function example.create_user(_user_name varchar, out id int) r
     end;
 $$ language plpgsql;
 
-insert into example.users (user_name) select 'user_name_' || u::varchar from generate_series(1, 100) as u;
+create or replace function example.uncovered() returns void as $$
+$$ language sql;

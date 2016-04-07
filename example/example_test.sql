@@ -1,41 +1,61 @@
+-- Write your tests
+
 create or replace function example.test_create_user() returns void as $$
     declare
-        _user_id   int;
-        _user_name varchar;
+        _user_id       int;
+        _user_name     varchar;
+        _current_count int;
     begin 
-        IF assert.equal(100, (select count(*)::int from example.users)) THEN 
+
+        SELECT COUNT(*) INTO _current_count FROM example.users;
+
+        INSERT INTO example.users (user_name) 
+            SELECT 'user_name_' || U::varchar FROM generate_series(1, 100) AS U;
+
+        IF assert.equal(_current_count + 100, (select count(*)::int from example.users)) THEN 
 
             _user_name = 'user_name_' || random()*1000;
 
             _user_id   = example.create_user(_user_name);
 
-            PERFORM example.create_user('TxUserName');
+            IF assert.not_null(_user_id, 'Retuning value should be integer') THEN
 
-            IF assert.equal(102, (select count(*)::int from example.users)) THEN 
+                PERFORM example.create_user('TxUserName');
 
-                PERFORM assert.equal(_user_name, (select user_name from example.users where user_id = _user_id));
+                IF assert.equal(_current_count + 102, (select count(*)::int from example.users)) THEN 
+
+                    PERFORM assert.equal(_user_name, (select user_name from example.users where user_id = _user_id));
+                END IF;
             END IF;
-
         END IF;
     end;
 $$ language plpgsql;
-
 
 create or replace function example.test_roll_back_a_transaction_for_each_test() returns void as $$
     -- The framework will create and roll back a transaction for each test.
     begin 
 
-        IF assert.false(EXISTS(SELECT FROM example.users WHERE user_name = 'TxUserName'), 'The user should not be present in db') THEN 
-            return;
+        IF assert.true(NOT EXISTS(SELECT FROM example.users WHERE user_name = 'TxUserName'), 'The user should not be present in db') THEN 
+
+           IF assert.not_null(example.create_user('TxUserName'), 'Retuning value should be integer') THEN 
+
+                PERFORM assert.false(
+                    NOT EXISTS(SELECT FROM example.users WHERE user_name = 'TxUserName'), 
+                    'The user should be present in db'
+                );
+
+           END IF;
+
         END IF;
 
-        PERFORM example.create_user('TxUserName');
     end;
 $$ language plpgsql;
 
+-- Register your tests in Postgres-CI database
 select assert.add_test('example', 'test_create_user');
 select assert.add_test('example', 'test_roll_back_a_transaction_for_each_test');
 
+-- Run your tests
 select 
     namespace || '.' || procedure as func,
     case 
@@ -48,44 +68,4 @@ select
     finished_at - started_at as duration
 from  assert.test_runner();
 
-/*
-
-create or replace function example.test_func() returns void as $$
-    begin 
-        IF assert.equal(2, 2) THEN 
-            PERFORM assert.equal(1, 42);
-        END IF;
-    end;
-$$ language plpgsql;
-
-
-create or replace function example.test_func2() returns void as $$
-    begin 
-        IF assert.equal(2, 2) THEN 
-            PERFORM assert.equal(42, 42);
-        END IF;
-    end;
-$$ language plpgsql;
-
-*/
-
-
--- select assert.add_test('example', 'test_func');
--- select assert.add_test('example', 'test_func2');
-
-/*
-
-
--[ RECORD 1 ]--------------------------------------------------------------------------------
-func     | example.test_func
-result   | fail
-errors   | [{"message":"Not equal: 1 (expected) != 42 (actual)","comment":""}]
-duration | 00:00:00.000757
--[ RECORD 2 ]--------------------------------------------------------------------------------
-func     | example.test_func2
-result   | pass
-errors   | []
-duration | 00:00:00.000363
-
-
-*/
+-- Enjoy!
