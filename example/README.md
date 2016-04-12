@@ -20,6 +20,7 @@ Register your tests in Postgres-CI database
 
 ```sql
 select assert.add_test('example', 'test_create_user');
+select assert.add_test('example', 'test_constraint');
 select assert.add_test('example', 'test_roll_back_a_transaction_for_each_test');
 ```
 
