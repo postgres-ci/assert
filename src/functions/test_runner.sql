@@ -46,6 +46,8 @@ create or replace function assert.test_runner() returns table (
 
             PERFORM assert.end_test(_test_errors);
 
+            _test_errors = '{}';
+
         END LOOP;
 
         return query 
