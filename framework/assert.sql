@@ -43,7 +43,7 @@ create table assert.results(
 );
 
 create index idx_assert_test_results on assert.results(test_id);
-
+/*
 create or replace view assert.view_tests as 
     SELECT 
         T.test_id,
@@ -67,7 +67,7 @@ create or replace view assert.view_tests as
         ORDER BY R.run_num DESC 
         LIMIT 1
     ) AS R USING(test_id);
-
+*/
     /* src/functions/add_test.sql */
     
 create or replace function assert.add_test(_namespace name, _procedure name) returns void as $$
