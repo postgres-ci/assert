@@ -12,4 +12,4 @@ grant execute on function assert.null(text, text) to public;
 grant execute on function assert.not_null(anyelement, text) to public;
 grant execute on function assert.not_null(text, text) to public;
 grant execute on function assert.exception(text,text,text,text,text,text,text,text) to public;
--- grant select on table assert.view_tests to public;
+grant select on table assert.view_tests to public;
